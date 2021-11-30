@@ -58,6 +58,9 @@ void gt_init( void )
 {
     g_gtcur = & g_gttbl[ 0 ];           // initialize current thread with thread #0
     g_gtcur -> thread_state = Running;  // set current to running
+    g_gtcur -> tid = 0;                 //set current position in thread table to 0
+
+//BLOCK OF CODE USED IN NON PREEMPTIVE THREADS
 #if ( GT_PREEMPTIVE != 0 )
     gt_sig_start();
 #endif
@@ -129,16 +132,22 @@ void gt_stop( void )
 
 
 // create new thread by providing pointer to function that will act like "run" method
-int gt_go( void ( * t_run )( void ) ) 
+int gt_go( void ( * t_run )( void ), char* t_name ) 
 {
     char * l_stack;
-    struct gt_context_t * p;
-    
-    for ( p = & g_gttbl[ 0 ];; p++ )            // find an empty slot
+    struct gt_context_t * p;    //creating an empty struct with thread info
+    int l_tid;  //creating local variable l_tid for getting current index of empty slot    
+
+    for ( p = & g_gttbl[ 0 ], l_tid = 0;; p++, l_tid++ )            // find an empty slot
         if ( p == & g_gttbl[ MaxGThreads ] )    // if we have reached the end, gttbl is full and we cannot create a new thread
             return -1;
         else if ( p -> thread_state == Unused )
-            break;                              // new slot was found
+        {
+            p -> tid = l_tid;
+            snprintf( p -> name, sizeof( p -> name ) + 1, "%s", t_name );
+            break; 
+        }
+                                         // new slot was found
 
     l_stack = ( char * ) malloc( StackSize );   // allocate memory for stack of newly created thread
     if ( !l_stack )
@@ -149,7 +158,7 @@ int gt_go( void ( * t_run )( void ) )
     p -> regs.rsp = ( uint64_t ) & l_stack[ StackSize - 16 ];           //  set stack pointer
     p -> thread_state = Ready;                                          //  set state
 
-    return 0;
+    return l_tid;
 }
 
 
@@ -191,4 +200,16 @@ int uninterruptibleNanoSleep( time_t t_sec, long t_nanosec )
     } while (req.tv_sec > 0 || req.tv_nsec > 0);
 #endif
     return 0; /* Return success */
+}
+
+
+//function returning current thread position in table.
+int gettid()
+{
+    return g_gtcur -> tid;
+}
+
+char* getname()
+{
+    return g_gtcur -> name;
 }

@@ -42,16 +42,20 @@ struct gt_context_t {
     regs;
 
     gt_thread_state_t thread_state; // process state
+    int tid;                        //position of thread in thread table
+    char name[20];                  //name of thread
 };
 
 
 void gt_init( void );                       // initialize gttbl
-int  gt_go( void ( * t_run )( void ) );     // create new thread and set f as new "run" function
+int  gt_go( void ( * t_run )( void ), char* name );     // create new thread and set f as new "run" function
 void gt_stop( void );                       // terminate current thread
 int  gt_yield( void );                      // yield and switch to another thread
 void gt_scheduler( void );                  // start scheduler, wait for all tasks
 
 void gt_ret( int t_ret );                   // terminate thread
+int gettid();                               // function returning position of current thread
+char* getname();                         //function returning name of current thread
 
 #if ( GT_PREEMPTIVE == 0 )
 void gt_swtch( struct gt_regs * t_old, struct gt_regs * t_new );        // declaration from gtswtch.S
