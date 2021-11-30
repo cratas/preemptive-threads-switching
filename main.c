@@ -27,10 +27,11 @@ void f( void ) {
     static int x;
     int count = COUNT;
     int id = ++x;
+    gt_task_suspend(1);
 
     while ( count-- )
     {
-        printf( "F Thread id: %d, count: %d, index: %d, name: %s\n", id, count, gettid(), getname() );
+        printf( "F Thread id: %d, count: %d, index: %d, name: %s, arg: %d\n", id, count, gettid(), gt_getname(), (int) gt_getarg() );
         uninterruptibleNanoSleep( 0, 1000000 );
 #if ( GT_PREEMPTIVE == 0 )
         gt_yield();
@@ -46,7 +47,7 @@ void g( void ) {
 
     while ( count-- )
     {
-        printf( "G Thread id: %d, count: %d, index: %d, name: %s\n", id, count, gettid(), getname() );
+        printf( "G Thread id: %d, count: %d, index: %d, name: %s, arg: %d\n", id, count, gettid(), gt_getname(), (int) gt_getarg() );
         uninterruptibleNanoSleep( 0, 1000000 );
 #if ( GT_PREEMPTIVE == 0 )
         gt_yield();
@@ -56,11 +57,11 @@ void g( void ) {
 
 int main(void) {
     gt_init();      // initialize threads, see gthr.c
-    gt_go( f, "First thread" );     // set f() as first thread
-    gt_go( f, "Second thread" );     // set f() as second thread
-    gt_go( g, "Third thread" );     // set g() as third thread
-    gt_go( g, "Fourth thread" );     // set g() as fourth thread
+    gt_go( f, "First thread" , (void*)1);     // set f() as first thread
+    gt_go( f, "Second thread" , (void*)3);     // set f() as second thread
+    gt_go( g, "Third thread" , (void*)6);     // set g() as third thread
+    gt_go( g, "Fourth thread" , (void*)9);     // set g() as fourth thread
+    printf("%s\n", gt_task_list()+6);
     gt_scheduler(); // wait until all threads terminate
-  
     printf( "Threads finished\n" );
 }

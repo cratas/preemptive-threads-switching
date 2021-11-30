@@ -91,19 +91,19 @@ void gt_scheduler( void )
 // switch from one thread to other
 int gt_yield( void ) 
 {
-    struct gt_context_t * p;
+    struct gt_context_t * thread;
     struct gt_regs * l_old, * l_new;
     int l_no_ready = 0;                 // not ready processes
 
-    p = g_gtcur;
-    while ( p -> thread_state != Ready )// iterate through g_gttbl[] until we find new thread in state Ready 
+    thread = g_gtcur;
+    while ( thread -> thread_state != Ready )// iterate through g_gttbl[] until we find new thread in state Ready 
     {
-        if ( p -> thread_state == Blocked || p -> thread_state == Suspended ) 
+        if ( thread -> thread_state == Blocked || thread -> thread_state == Suspended ) 
             l_no_ready++;               // number of Blocked and Suspend processes
 
-        if ( ++p == & g_gttbl[ MaxGThreads ] )// at the end rotate to the beginning
-            p = & g_gttbl[ 0 ];
-        if ( p == g_gtcur )             // did not find any other Ready threads
+        if ( ++thread == & g_gttbl[ MaxGThreads ] )// at the end rotate to the beginning
+            thread = & g_gttbl[ 0 ];
+        if ( thread == g_gtcur )             // did not find any other Ready threads
         {
             return - l_no_ready;        // no task ready, or task table empty
         }
@@ -111,10 +111,10 @@ int gt_yield( void )
 
     if ( g_gtcur -> thread_state == Running )// switch current to Ready and new thread found in previous loop to Running
         g_gtcur -> thread_state = Ready;
-    p -> thread_state = Running;
+    thread -> thread_state = Running;
     l_old = & g_gtcur -> regs;          // prepare pointers to context of current (will become old) 
-    l_new = & p -> regs;                // and new to new thread found in previous loop
-    g_gtcur = p;                        // switch current indicator to new thread
+    l_new = & thread -> regs;                // and new to new thread found in previous loop
+    g_gtcur = thread;                        // switch current indicator to new thread
 #if ( GT_PREEMPTIVE != 0 )
     gt_pree_swtch( l_old, l_new );      // perform context switch (assembly in gtswtch.S)
 #else
@@ -132,19 +132,21 @@ void gt_stop( void )
 
 
 // create new thread by providing pointer to function that will act like "run" method
-int gt_go( void ( * t_run )( void ), char* t_name ) 
+int gt_go( void ( * t_run )( void ), char* t_name, void* t_argument ) 
 {
     char * l_stack;
-    struct gt_context_t * p;    //creating an empty struct with thread info
-    int l_tid;  //creating local variable l_tid for getting current index of empty slot    
+    struct gt_context_t * thread;                // creating an empty struct with thread info
+    int l_tid;                              // creating local variable l_tid for getting current index of empty slot    
 
-    for ( p = & g_gttbl[ 0 ], l_tid = 0;; p++, l_tid++ )            // find an empty slot
-        if ( p == & g_gttbl[ MaxGThreads ] )    // if we have reached the end, gttbl is full and we cannot create a new thread
+    for ( thread = & g_gttbl[ 0 ], l_tid = 0;; thread++, l_tid++ )                // find an empty slot
+        if ( thread == & g_gttbl[ MaxGThreads ] )                            // if we have reached the end, gttbl is full and we cannot create a new thread
             return -1;
-        else if ( p -> thread_state == Unused )
+        else if ( thread -> thread_state == Unused )
         {
-            p -> tid = l_tid;
-            snprintf( p -> name, sizeof( p -> name ) + 1, "%s", t_name );
+            thread -> tid = l_tid;                                               //getting current thread id
+            thread -> argument = t_argument;             
+            thread -> time = clock();                        //getting argument passed as parameter
+            snprintf( thread -> name, sizeof( thread -> name ) + 1, "%s", t_name );   //getting name passed as parameter limited on thread name size
             break; 
         }
                                          // new slot was found
@@ -155,8 +157,8 @@ int gt_go( void ( * t_run )( void ), char* t_name )
 
     *( uint64_t * ) & l_stack[ StackSize - 8 ] = ( uint64_t ) gt_stop;  //  put into the stack returning function gt_stop in case function calls return
     *( uint64_t * ) & l_stack[ StackSize - 16 ] = ( uint64_t ) t_run;   //  put provided function as a main "run" function
-    p -> regs.rsp = ( uint64_t ) & l_stack[ StackSize - 16 ];           //  set stack pointer
-    p -> thread_state = Ready;                                          //  set state
+    thread -> regs.rsp = ( uint64_t ) & l_stack[ StackSize - 16 ];           //  set stack pointer
+    thread -> thread_state = Ready;                                          //  set state
 
     return l_tid;
 }
@@ -203,13 +205,66 @@ int uninterruptibleNanoSleep( time_t t_sec, long t_nanosec )
 }
 
 
-//function returning current thread position in table.
+// function returning current thread position in table
 int gettid()
 {
     return g_gtcur -> tid;
 }
 
-char* getname()
+// function returning current thread position in table
+char* gt_getname()
 {
     return g_gtcur -> name;
+}
+
+// function returning current thread argument
+void* gt_getarg()
+{
+    return g_gtcur -> argument;
+}
+
+// function returning task list as string
+char* gt_task_list()
+{
+    struct gt_context_t * thread;    
+    char task_list[1024]; 
+    char* result = (char*)malloc(sizeof(char)*1024);
+
+    strcat(task_list, "ID \t | \t Name \t\t | \t State\n");
+    strcat(task_list, "_____________________________________________________________\n");
+
+
+    for ( thread = & g_gttbl[ 1 ];; thread++)                // find an empty slot
+    {
+        if ( thread == & g_gttbl[ MaxGThreads ] )                         // if we have reached the end, gttbl is full and we cannot create a new thread
+            break;
+
+        char list_line[128];
+        char* state = STATES[thread -> thread_state];                     // getting thread state from enum via STATES static array
+
+        sprintf(list_line, "%d \t | \t %s \t | \t %s\n", thread -> tid, thread -> name, state);
+        strcat(task_list, list_line); 
+    }
+
+    strcpy(result, task_list);
+
+    return result;
+}
+
+// function to suspend thread by id
+void gt_task_suspend(int tid)
+{
+    struct gt_context_t *thread;
+    thread = &g_gttbl[ tid ];
+    thread -> thread_state = Ready;
+    gt_yield();
+}
+
+// function to resume thread by id
+void gt_task_resume(int tid)
+{
+    struct gt_context_t *thread;
+    thread = &g_gttbl[ tid ];
+    thread -> thread_state = Suspended;
+    gt_yield();
 }
