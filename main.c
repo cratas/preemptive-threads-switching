@@ -27,7 +27,7 @@ void f( void ) {
     static int x;
     int count = COUNT;
     int id = ++x;
-    gt_task_suspend(1);
+    // gt_task_suspend(1);
 
     while ( count-- )
     {
@@ -61,7 +61,9 @@ int main(void) {
     gt_go( f, "Second thread" , (void*)3);     // set f() as second thread
     gt_go( g, "Third thread" , (void*)6);     // set g() as third thread
     gt_go( g, "Fourth thread" , (void*)9);     // set g() as fourth thread
-    printf("%s\n", gt_task_list()+6);
     gt_scheduler(); // wait until all threads terminate
+
+    printf("%s\n", gt_task_list());
+
     printf( "Threads finished\n" );
 }

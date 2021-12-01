@@ -50,7 +50,7 @@ struct gt_context_t {
     char name[20];                          // name of thread
     void* argument;                         // thread argument
     clock_t start_time;                     // time of starting thread   
-    double time;                            // running time
+    clock_t time;                            // running time
 };
 
 

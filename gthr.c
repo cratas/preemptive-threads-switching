@@ -1,4 +1,3 @@
-
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -46,9 +45,11 @@ void gt_sig_handle( int t_sig )
 {
     gt_sig_reset();                     // enable SIGALRM again
 
-    // .... manage timers here
+    g_gtcur -> time = g_gtcur -> time + ( clock() - g_gtcur -> start_time );
 
     gt_yield();                         // scheduler
+
+    g_gtcur -> start_time = clock();
 }
 
 #endif
@@ -59,6 +60,7 @@ void gt_init( void )
     g_gtcur = & g_gttbl[ 0 ];           // initialize current thread with thread #0
     g_gtcur -> thread_state = Running;  // set current to running
     g_gtcur -> tid = 0;                 //set current position in thread table to 0
+    g_gtcur -> time = clock();
 
 //BLOCK OF CODE USED IN NON PREEMPTIVE THREADS
 #if ( GT_PREEMPTIVE != 0 )
@@ -145,7 +147,7 @@ int gt_go( void ( * t_run )( void ), char* t_name, void* t_argument )
         {
             thread -> tid = l_tid;                                               //getting current thread id
             thread -> argument = t_argument;             
-            thread -> time = clock();                        //getting argument passed as parameter
+            thread -> start_time = clock();                        //getting argument passed as parameter
             snprintf( thread -> name, sizeof( thread -> name ) + 1, "%s", t_name );   //getting name passed as parameter limited on thread name size
             break; 
         }
@@ -230,7 +232,7 @@ char* gt_task_list()
     char task_list[1024]; 
     char* result = (char*)malloc(sizeof(char)*1024);
 
-    strcat(task_list, "ID \t | \t Name \t\t | \t State\n");
+    strcat(task_list, "ID \t | \t Name \t\t | \t Time\n");
     strcat(task_list, "_____________________________________________________________\n");
 
 
@@ -242,7 +244,7 @@ char* gt_task_list()
         char list_line[128];
         char* state = STATES[thread -> thread_state];                     // getting thread state from enum via STATES static array
 
-        sprintf(list_line, "%d \t | \t %s \t | \t %s\n", thread -> tid, thread -> name, state);
+        sprintf(list_line, "%d \t | \t %s \t | \t %f\n", thread -> tid, thread -> name, (double)(thread -> time) / CLOCKS_PER_SEC);
         strcat(task_list, list_line); 
     }
 
