@@ -58,12 +58,12 @@ void g( void ) {
 
 int main(void) {
     gt_init();      // initialize threads, see gthr.c
-    gt_go( f, "First thread" , (void*)1);     // set f() as first thread
-    gt_go( f, "Second thread" , (void*)3);     // set f() as second thread
-    gt_go( g, "Third thread" , (void*)6);     // set g() as third thread
-    gt_go( g, "Fourth thread" , (void*)9);     // set g() as fourth thread
+    gt_go( f, "First thread" , (void*)1, 2);     // set f() as first thread
+    gt_go( f, "Second thread" , (void*)3, 5);     // set f() as second thread
+    gt_go( g, "Third thread" , (void*)6, 1);     // set g() as third thread
+    gt_go( g, "Fourth thread" , (void*)9, 1);     // set g() as fourth thread
 
-    gt_task_delay( 100, 2 );
+    // gt_task_delay( 100, 2 );
     gt_scheduler(); // wait until all threads terminate
 
     printf("%s\n", gt_task_list());

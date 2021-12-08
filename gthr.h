@@ -53,11 +53,13 @@ struct gt_context_t {
     clock_t time;                           // running time
     int ticks_count;                        // count of ticks
     int ticks_delay;                        // count of delay 
+    int ticks_to_switch;                    // how many ticks should thread take before switch to another
+    int ticks_to_switch_current;            // current ticks count to switch thread
 };
 
 
 void gt_init( void );                       // initialize gttbl
-int  gt_go( void ( * t_run )( void ), char* name, void* argument );     // create new thread and set f as new "run" function
+int  gt_go( void ( * t_run )( void ), char* name, void* argument , int ticks_to_switch );     // create new thread and set f as new "run" function
 void gt_stop( void );                       // terminate current thread
 int  gt_yield( void );                      // yield and switch to another thread
 void gt_scheduler( void );                  // start scheduler, wait for all tasks

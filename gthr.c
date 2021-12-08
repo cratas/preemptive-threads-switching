@@ -57,7 +57,7 @@ void gt_sig_handle( int t_sig )
 
         if( thread -> ticks_delay == 0 )
         {
-            if(thread -> thread_state == Blocked) thread ->thread_state = Ready;
+            if(thread -> thread_state == Blocked) thread -> thread_state = Ready;
         }
         else
         {
@@ -65,9 +65,15 @@ void gt_sig_handle( int t_sig )
         }
     }
 
-    gt_yield();                         // scheduler
+    g_gtcur -> ticks_to_switch_current--;
 
-    g_gtcur -> start_time = clock();
+    if(g_gtcur -> ticks_to_switch_current == 0) 
+    {
+        g_gtcur -> ticks_to_switch_current = g_gtcur -> ticks_to_switch;
+        printf("SWITCHING TO ANOTHER THREAD\n");
+        gt_yield();                         // calling sheduler
+        g_gtcur -> start_time = clock();
+    }
 }
 
 #endif
@@ -81,6 +87,8 @@ void gt_init( void )
     g_gtcur -> time = clock();
     g_gtcur -> ticks_count = 0;
     g_gtcur -> ticks_delay = 0;
+    g_gtcur -> ticks_to_switch_current = 1;
+    g_gtcur -> ticks_to_switch = 1;
 
 //BLOCK OF CODE USED IN NON PREEMPTIVE THREADS
 #if ( GT_PREEMPTIVE != 0 )
@@ -154,7 +162,7 @@ void gt_stop( void )
 
 
 // create new thread by providing pointer to function that will act like "run" method
-int gt_go( void ( * t_run )( void ), char* t_name, void* t_argument ) 
+int gt_go( void ( * t_run )( void ), char* t_name, void* t_argument , int ticks_to_switch ) 
 {
     char * l_stack;
     struct gt_context_t * thread;                // creating an empty struct with thread info
@@ -170,7 +178,9 @@ int gt_go( void ( * t_run )( void ), char* t_name, void* t_argument )
             thread -> start_time = clock();                                      // setting runtime on 0
             thread -> ticks_count = 0;                                           // setting ticks_count on 0
             thread -> ticks_delay = 0;                                           // setting ticks_delay on 0
-                                  
+            thread -> ticks_to_switch = ticks_to_switch;                         // setting count of ticks for runtime before switch
+            thread -> ticks_to_switch_current = ticks_to_switch;                 // setting current count of ticks for max
+
             snprintf( thread -> name, sizeof( thread -> name ) + 1, "%s", t_name );   // getting name passed as parameter limited on thread name size
             break; 
         }
