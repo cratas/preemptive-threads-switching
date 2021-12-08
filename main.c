@@ -27,12 +27,13 @@ void f( void ) {
     static int x;
     int count = COUNT;
     int id = ++x;
-    // gt_task_suspend(1);
+
 
     while ( count-- )
     {
-        printf( "F Thread id: %d, count: %d, index: %d, name: %s, arg: %d\n", id, count, gettid(), gt_getname(), (int) gt_getarg() );
+        printf( "F Thread id: %d, count: %d, index: %d\n", id, count, gettid() );
         uninterruptibleNanoSleep( 0, 1000000 );
+
 #if ( GT_PREEMPTIVE == 0 )
         gt_yield();
 #endif
@@ -47,7 +48,7 @@ void g( void ) {
 
     while ( count-- )
     {
-        printf( "G Thread id: %d, count: %d, index: %d, name: %s, arg: %d\n", id, count, gettid(), gt_getname(), (int) gt_getarg() );
+        printf( "G Thread id: %d, count: %d, index: %d\n", id, count, gettid() );
         uninterruptibleNanoSleep( 0, 1000000 );
 #if ( GT_PREEMPTIVE == 0 )
         gt_yield();
@@ -61,6 +62,8 @@ int main(void) {
     gt_go( f, "Second thread" , (void*)3);     // set f() as second thread
     gt_go( g, "Third thread" , (void*)6);     // set g() as third thread
     gt_go( g, "Fourth thread" , (void*)9);     // set g() as fourth thread
+
+    gt_task_delay( 100, 2 );
     gt_scheduler(); // wait until all threads terminate
 
     printf("%s\n", gt_task_list());

@@ -46,6 +46,24 @@ void gt_sig_handle( int t_sig )
     gt_sig_reset();                     // enable SIGALRM again
 
     g_gtcur -> time = g_gtcur -> time + ( clock() - g_gtcur -> start_time );
+    g_gtcur -> ticks_count++;
+
+    struct gt_context_t * thread;    
+
+    for ( thread = & g_gttbl[ 0 ];; thread++)                             // find an empty slot
+    {
+        if ( thread == & g_gttbl[ MaxGThreads ] )                         // if we have reached the end, gttbl is full and we cannot create a new thread
+            break;
+
+        if( thread -> ticks_delay == 0 )
+        {
+            if(thread -> thread_state == Blocked) thread ->thread_state = Ready;
+        }
+        else
+        {
+            thread -> ticks_delay--;
+        }
+    }
 
     gt_yield();                         // scheduler
 
@@ -61,6 +79,8 @@ void gt_init( void )
     g_gtcur -> thread_state = Running;  // set current to running
     g_gtcur -> tid = 0;                 //set current position in thread table to 0
     g_gtcur -> time = clock();
+    g_gtcur -> ticks_count = 0;
+    g_gtcur -> ticks_delay = 0;
 
 //BLOCK OF CODE USED IN NON PREEMPTIVE THREADS
 #if ( GT_PREEMPTIVE != 0 )
@@ -145,10 +165,13 @@ int gt_go( void ( * t_run )( void ), char* t_name, void* t_argument )
             return -1;
         else if ( thread -> thread_state == Unused )
         {
-            thread -> tid = l_tid;                                               //getting current thread id
-            thread -> argument = t_argument;             
-            thread -> start_time = clock();                        //getting argument passed as parameter
-            snprintf( thread -> name, sizeof( thread -> name ) + 1, "%s", t_name );   //getting name passed as parameter limited on thread name size
+            thread -> tid = l_tid;                                               // getting current thread id
+            thread -> argument = t_argument;                                     // getting argument passed as parameter
+            thread -> start_time = clock();                                      // setting runtime on 0
+            thread -> ticks_count = 0;                                           // setting ticks_count on 0
+            thread -> ticks_delay = 0;                                           // setting ticks_delay on 0
+                                  
+            snprintf( thread -> name, sizeof( thread -> name ) + 1, "%s", t_name );   // getting name passed as parameter limited on thread name size
             break; 
         }
                                          // new slot was found
@@ -232,11 +255,11 @@ char* gt_task_list()
     char task_list[1024]; 
     char* result = (char*)malloc(sizeof(char)*1024);
 
-    strcat(task_list, "ID \t | \t Name \t\t | \t Time\n");
-    strcat(task_list, "_____________________________________________________________\n");
+    strcat(task_list, "\nID \t | \t Name \t\t | \t Time \t\t | \t Ticks\n");
+    strcat(task_list, "______________________________________________________________________________\n");
 
 
-    for ( thread = & g_gttbl[ 1 ];; thread++)                // find an empty slot
+    for ( thread = & g_gttbl[ 1 ];; thread++)                             // find an empty slot
     {
         if ( thread == & g_gttbl[ MaxGThreads ] )                         // if we have reached the end, gttbl is full and we cannot create a new thread
             break;
@@ -244,7 +267,7 @@ char* gt_task_list()
         char list_line[128];
         char* state = STATES[thread -> thread_state];                     // getting thread state from enum via STATES static array
 
-        sprintf(list_line, "%d \t | \t %s \t | \t %f\n", thread -> tid, thread -> name, (double)(thread -> time) / CLOCKS_PER_SEC);
+        sprintf(list_line, "%d \t | \t %s \t | \t %f \t | \t %d\n", thread -> tid, thread -> name, (double)(thread -> time) / CLOCKS_PER_SEC, thread -> ticks_count);
         strcat(task_list, list_line); 
     }
 
@@ -254,19 +277,29 @@ char* gt_task_list()
 }
 
 // function to suspend thread by id
-void gt_task_suspend(int tid)
+void gt_task_suspend( int tid )
 {
     struct gt_context_t *thread;
     thread = &g_gttbl[ tid ];
-    thread -> thread_state = Ready;
-    gt_yield();
+
+    thread -> thread_state = Suspended;
+    if(thread -> thread_state == Suspended) gt_yield();     // if we want to suspend thread immediatly we gotta call sheduler (only if thread is currently running)
 }
 
 // function to resume thread by id
-void gt_task_resume(int tid)
+void gt_task_resume( int tid )
+{
+    struct gt_context_t *thread;
+
+    thread = &g_gttbl[ tid ];
+    if(thread -> thread_state == Suspended) thread -> thread_state = Ready;
+}
+
+// function to sleep thread on n ticks
+void gt_task_delay( int ticks_count, int tid )
 {
     struct gt_context_t *thread;
     thread = &g_gttbl[ tid ];
-    thread -> thread_state = Suspended;
-    gt_yield();
+    thread -> ticks_delay = ticks_count;
+    thread -> thread_state = Blocked;
 }

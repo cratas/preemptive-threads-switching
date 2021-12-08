@@ -50,7 +50,9 @@ struct gt_context_t {
     char name[20];                          // name of thread
     void* argument;                         // thread argument
     clock_t start_time;                     // time of starting thread   
-    clock_t time;                            // running time
+    clock_t time;                           // running time
+    int ticks_count;                        // count of ticks
+    int ticks_delay;                        // count of delay 
 };
 
 
@@ -65,8 +67,9 @@ int gettid();                               // function returning position of cu
 char* gt_getname();                         // function returning name of current thread
 void* gt_getarg();                          // function returning argument of current thread 
 char* gt_task_list();                       // function returning list of threads as text   
-void gt_task_suspend(int tid);                     // function to suspend thread by id
-void gt_task_resume(int tid);                      // function to resume thread by id
+void gt_task_suspend( int tid );                     // function to suspend thread by id
+void gt_task_resume( int tid );                      // function to resume thread by id
+void gt_task_delay( int ticks_count, int tid );               // function to sleep thread to n ticks sended as function parameter
 
 
 #if ( GT_PREEMPTIVE == 0 )
